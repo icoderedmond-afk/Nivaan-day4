@@ -235,22 +235,22 @@
         }
 
         function playPaddleHitSound() {
-            playTone(440, 'triangle', 0.1, 0.2); // A4 Note
+            playTone(440, 'triangle', 0.1, 0.2);
         }
 
         function playWallHitSound() {
-            playTone(220, 'sine', 0.08, 0.15); // A3 Note
+            playTone(220, 'sine', 0.08, 0.15);
         }
 
         function playScoreSound() {
             if (isAudioMuted || !audioCtx) return;
-            playTone(523.25, 'square', 0.1, 0.15); // C5
-            setTimeout(() => playTone(659.25, 'square', 0.15, 0.15), 100); // E5
+            playTone(523.25, 'square', 0.1, 0.15);
+            setTimeout(() => playTone(659.25, 'square', 0.15, 0.15), 100);
         }
 
         function playWinSound() {
             if (isAudioMuted || !audioCtx) return;
-            const notes = [523.25, 659.25, 783.99, 1046.50]; // C - E - G - C
+            const notes = [523.25, 659.25, 783.99, 1046.50];
             notes.forEach((freq, index) => {
                 setTimeout(() => playTone(freq, 'square', 0.2, 0.2), index * 120);
             });
@@ -259,21 +259,20 @@
         // Retro Synth Background Music Loop
         function startBackgroundMusic() {
             if (musicInterval) return;
-            const melody = [261.63, 0, 329.63, 0, 392.00, 329.63, 261.63, 0]; // Simple C Major Synth line
+            const melody = [261.63, 0, 329.63, 0, 392.00, 329.63, 261.63, 0];
             let noteIndex = 0;
 
             musicInterval = setInterval(() => {
                 if (!isAudioMuted && audioCtx && !isGameOver) {
                     const freq = melody[noteIndex];
                     if (freq > 0) {
-                        playTone(freq, 'sine', 0.18, 0.03); // Soft volume for background
+                        playTone(freq, 'sine', 0.18, 0.03);
                     }
                 }
                 noteIndex = (noteIndex + 1) % melody.length;
             }, 250);
         }
 
-        // Initialize audio on first user key press or click
         window.addEventListener('keydown', initAudio, { once: true });
         window.addEventListener('click', initAudio, { once: true });
 
@@ -433,4 +432,107 @@
             let paddle = (ball.x < canvas.width / 2) ? player1 : player2;
 
             if (checkCollision(ball, paddle)) {
-                let collidePoint = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2
+                let collidePoint = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2);
+                let bounceAngle = collidePoint * (Math.PI / 4);
+                let direction = (ball.x < canvas.width / 2) ? 1 : -1;
+
+                ball.vx = direction * FIXED_BALL_SPEED * Math.cos(bounceAngle);
+                ball.vy = FIXED_BALL_SPEED * Math.sin(bounceAngle);
+
+                normalizeBallSpeed();
+                playPaddleHitSound();
+            }
+
+            // Score conditions
+            if (ball.x - ball.radius < 0) {
+                player2.score++;
+                playScoreSound();
+                checkWinCondition();
+                if (!isGameOver) resetBall(1);
+            } else if (ball.x + ball.radius > canvas.width) {
+                player1.score++;
+                playScoreSound();
+                checkWinCondition();
+                if (!isGameOver) resetBall(-1);
+            }
+        }
+
+        function checkWinCondition() {
+            if (player1.score >= targetScore || player2.score >= targetScore) {
+                isGameOver = true;
+                playWinSound();
+                const overlay = document.getElementById("gameOverOverlay");
+                const winnerText = document.getElementById("winnerText");
+
+                if (player1.score >= targetScore) {
+                    winnerText.innerText = "🏆 Player 1 Wins!";
+                } else {
+                    winnerText.innerText = gameMode === 'robot' ? "🤖 Robot Wins!" : "🏆 Player 2 Wins!";
+                }
+
+                overlay.style.display = "flex";
+            }
+        }
+
+        function checkCollision(b, p) {
+            return b.x - b.radius < p.x + p.width &&
+                   b.x + b.radius > p.x &&
+                   b.y + b.radius > p.y &&
+                   b.y - b.radius < p.y + p.height;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Center dotted net
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Scores
+            ctx.fillStyle = "#FFF";
+            ctx.font = "bold 40px sans-serif";
+            ctx.fillText(player1.score, canvas.width / 4, 60);
+            ctx.fillText(player2.score, (3 * canvas.width) / 4, 60);
+
+            // Neon Glow Effect for Paddles & Ball
+            ctx.shadowBlur = 15;
+
+            // Player 1 Paddle
+            ctx.shadowColor = player1.color;
+            ctx.fillStyle = player1.color;
+            ctx.fillRect(player1.x, player1.y, player1.width, player1.height);
+
+            // Player 2 Paddle
+            ctx.shadowColor = player2.color;
+            ctx.fillStyle = player2.color;
+            ctx.fillRect(player2.x, player2.y, player2.width, player2.height);
+
+            // Ball
+            ctx.shadowColor = ball.color;
+            ctx.fillStyle = ball.color;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Reset glow effect for text/lines
+            ctx.shadowBlur = 0;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
+
+      
